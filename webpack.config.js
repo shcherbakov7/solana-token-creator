@@ -1,12 +1,12 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
 
 module.exports = {
   entry: './src/index.tsx',
   output: {
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'docs'),
     filename: 'bundle.js',
+    publicPath: '/solana-token-creator/',
   },
   module: {
     rules: [
@@ -31,26 +31,19 @@ module.exports = {
       "https": require.resolve("https-browserify"),
       "os": require.resolve("os-browserify/browser"),
       "url": require.resolve("url/"),
+      "buffer": require.resolve("buffer/"),
       "zlib": require.resolve("browserify-zlib"),
-      "vm": require.resolve("vm-browserify"),
-      "buffer": require.resolve("buffer/")
-    }
+    },
   },
   plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html',
     }),
-    new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
-      process: 'process/browser',
-    }),
   ],
   devServer: {
     static: {
-      directory: path.join(__dirname, 'public'),
+      directory: path.join(__dirname, 'docs'),
     },
-    compress: true,
     port: 3006,
-    hot: true,
   },
 };
