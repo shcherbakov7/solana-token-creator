@@ -6,6 +6,9 @@ import {
   mintTo,
   createSetAuthorityInstruction,
   AuthorityType,
+  createInitializeMintInstruction,
+  createMintToInstruction,
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { Keypair, Transaction, SystemProgram, sendAndConfirmTransaction } from '@solana/web3.js';
 import {
@@ -61,7 +64,7 @@ export const CreateToken: FC = () => {
           newAccountPubkey: mintKeypair.publicKey,
           space: 82,
           lamports,
-          programId: SystemProgram.programId,
+          programId: TOKEN_PROGRAM_ID,
         })
       );
 
@@ -77,22 +80,28 @@ export const CreateToken: FC = () => {
       await connection.confirmTransaction(signature);
 
       // Initialize mint
-      await createMint(
-        connection,
-        {
-          publicKey: publicKey,
-          secretKey: mintKeypair.secretKey,
-        },
-        publicKey,
-        publicKey,
-        Number(decimals)
+      const initMintTx = new Transaction().add(
+        createInitializeMintInstruction(
+          mintKeypair.publicKey,
+          Number(decimals),
+          publicKey,
+          publicKey,
+          TOKEN_PROGRAM_ID
+        )
       );
+
+      initMintTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      initMintTx.feePayer = publicKey;
+
+      const signedInitMintTx = await signTransaction(initMintTx);
+      const initMintSignature = await connection.sendRawTransaction(signedInitMintTx.serialize());
+      await connection.confirmTransaction(initMintSignature);
 
       // Get token account
       const tokenAccount = await getOrCreateAssociatedTokenAccount(
         connection,
         {
-          publicKey: publicKey,
+          publicKey,
           secretKey: mintKeypair.secretKey,
         },
         mintKeypair.publicKey,
@@ -100,33 +109,42 @@ export const CreateToken: FC = () => {
       );
 
       // Mint initial supply
-      await mintTo(
-        connection,
-        {
-          publicKey: publicKey,
-          secretKey: mintKeypair.secretKey,
-        },
-        mintKeypair.publicKey,
-        tokenAccount.address,
-        mintKeypair,
-        1000000000000 // Initial supply
+      const mintToTx = new Transaction().add(
+        createMintToInstruction(
+          mintKeypair.publicKey,
+          tokenAccount.address,
+          publicKey,
+          1000000000000,
+          [],
+          TOKEN_PROGRAM_ID
+        )
       );
+
+      mintToTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      mintToTx.feePayer = publicKey;
+
+      const signedMintToTx = await signTransaction(mintToTx);
+      const mintToSignature = await connection.sendRawTransaction(signedMintToTx.serialize());
+      await connection.confirmTransaction(mintToSignature);
 
       // If revokeFreeze is true, remove freeze authority
       if (revokeFreeze) {
-        const instruction = createSetAuthorityInstruction(
-          mintKeypair.publicKey, // mint account
-          publicKey, // current authority
-          AuthorityType.FreezeAccount, // authority type
-          null // new authority (null to remove)
+        const revokeTx = new Transaction().add(
+          createSetAuthorityInstruction(
+            mintKeypair.publicKey,
+            publicKey,
+            AuthorityType.FreezeAccount,
+            null,
+            [],
+            TOKEN_PROGRAM_ID
+          )
         );
 
-        const transaction = new Transaction().add(instruction);
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        transaction.feePayer = publicKey;
+        revokeTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        revokeTx.feePayer = publicKey;
 
-        const signedTransaction = await signTransaction(transaction);
-        const revokeSignature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const signedRevokeTx = await signTransaction(revokeTx);
+        const revokeSignature = await connection.sendRawTransaction(signedRevokeTx.serialize());
         await connection.confirmTransaction(revokeSignature);
       }
 
