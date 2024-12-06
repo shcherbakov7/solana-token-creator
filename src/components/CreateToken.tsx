@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect, useMemo } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
   getAssociatedTokenAddress,
@@ -16,6 +16,7 @@ import {
   SystemProgram, 
   sendAndConfirmTransaction, 
   PublicKey,
+  Connection,
   clusterApiUrl,
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
@@ -35,8 +36,11 @@ import {
 import { ContentCopy, Launch } from '@mui/icons-material';
 
 export const CreateToken: FC = () => {
-  const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
+  const connection = useMemo(
+    () => new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'),
+    []
+  );
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
@@ -58,7 +62,7 @@ export const CreateToken: FC = () => {
   };
 
   const getExplorerUrl = (address: string, type: 'token' | 'address') => {
-    return `https://explorer.solana.com/${type}/${address}?cluster=devnet`;
+    return `https://solscan.io/${type}/${address}?cluster=mainnet`;
   };
 
   const handleCreateToken = async () => {
@@ -93,32 +97,11 @@ export const CreateToken: FC = () => {
         const balance = await connection.getBalance(publicKey);
         const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
         
-        console.log('Current balance:', balance / LAMPORTS_PER_SOL, 'SOL');
-        console.log('Required balance:', requiredBalance / LAMPORTS_PER_SOL, 'SOL');
+        console.log('Current balance:', (balance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
+        console.log('Required balance:', (requiredBalance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
         
         if (balance < requiredBalance) {
-          console.log('Requesting airdrop...');
-          try {
-            const airdropSignature = await connection.requestAirdrop(
-              publicKey,
-              2 * LAMPORTS_PER_SOL // Request 2 SOL
-            );
-            
-            // Wait for airdrop confirmation
-            await connection.confirmTransaction(airdropSignature);
-            console.log('Airdrop successful');
-            
-            // Verify new balance
-            const newBalance = await connection.getBalance(publicKey);
-            console.log('New balance:', newBalance / LAMPORTS_PER_SOL, 'SOL');
-            
-            if (newBalance < requiredBalance) {
-              throw new Error(`Insufficient balance even after airdrop. Please ensure you have at least ${requiredBalance / LAMPORTS_PER_SOL} SOL`);
-            }
-          } catch (airdropError) {
-            console.error('Airdrop failed:', airdropError);
-            throw new Error(`Failed to get required SOL. Please ensure you have at least ${requiredBalance / LAMPORTS_PER_SOL} SOL in your wallet`);
-          }
+          throw new Error(`Insufficient balance. Please ensure you have at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL in your wallet. Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
         }
 
         // Get associated token account address
