@@ -204,11 +204,18 @@ export const CreateToken: FC = () => {
       }
 
       setSuccess('Token created successfully!');
+      console.log('Token created:', {
+        mintAddress: mintKeypair.publicKey.toString(),
+        tokenAccountAddress: associatedTokenAddress.toString()
+      });
+      
       setTokenInfo({
         mintAddress: mintKeypair.publicKey.toString(),
         tokenAccountAddress: associatedTokenAddress.toString(),
       });
+      console.log('Setting openDialog to true');
       setOpenDialog(true);
+      console.log('Current openDialog state:', openDialog);
 
       // Reset form
       setTokenName('');
@@ -235,6 +242,8 @@ export const CreateToken: FC = () => {
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+          position: 'relative',
+          zIndex: 1
         }}
       >
         <Typography 
@@ -356,6 +365,7 @@ export const CreateToken: FC = () => {
       <Dialog 
         open={openDialog} 
         onClose={() => setOpenDialog(false)}
+        sx={{ zIndex: 9999 }}
         PaperProps={{
           sx: {
             background: 'linear-gradient(145deg, rgba(30,30,30,0.95) 0%, rgba(45,45,45,0.95) 100%)',
@@ -363,6 +373,7 @@ export const CreateToken: FC = () => {
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
             minWidth: '400px',
+            zIndex: 9999
           }
         }}
       >
