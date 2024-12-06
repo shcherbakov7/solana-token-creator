@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
   getAssociatedTokenAddress,
@@ -29,10 +29,6 @@ import {
   Paper,
   Switch,
   FormControlLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Link,
 } from '@mui/material';
 import { ContentCopy, Launch } from '@mui/icons-material';
@@ -51,7 +47,9 @@ export const CreateToken: FC = () => {
     mintAddress: string;
     tokenAccountAddress: string;
   } | null>(null);
-  const [openDialog, setOpenDialog] = useState(false);
+
+  useEffect(() => {
+  }, []);
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -79,7 +77,6 @@ export const CreateToken: FC = () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
-      setOpenDialog(false); // Reset dialog state
 
       // Create mint account
       const mintKeypair = Keypair.generate();
@@ -211,11 +208,12 @@ export const CreateToken: FC = () => {
           tokenAccountAddress: associatedTokenAddress.toString()
         });
         
-        setTokenInfo({
+        const newTokenInfo = {
           mintAddress: mintKeypair.publicKey.toString(),
           tokenAccountAddress: associatedTokenAddress.toString(),
-        });
+        };
         
+        setTokenInfo(newTokenInfo);
         setSuccess('Token created successfully!');
         
         // Reset form
@@ -223,9 +221,6 @@ export const CreateToken: FC = () => {
         setTokenSymbol('');
         setDecimals('9');
         setRevokeFreeze(false);
-        
-        // Show modal with token info
-        setOpenDialog(true);
 
       } catch (txError) {
         if (txError.message.includes('User rejected')) {
@@ -257,7 +252,8 @@ export const CreateToken: FC = () => {
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
           position: 'relative',
-          zIndex: 1
+          zIndex: 1,
+          mb: tokenInfo ? 4 : 0
         }}
       >
         <Typography 
@@ -376,30 +372,39 @@ export const CreateToken: FC = () => {
         </Box>
       </Paper>
 
-      <Dialog 
-        open={openDialog} 
-        onClose={() => setOpenDialog(false)}
-        sx={{ zIndex: 9999 }}
-        PaperProps={{
-          sx: {
+      {tokenInfo && (
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            maxWidth: 500,
+            mx: 'auto',
+            mt: 4,
             background: 'linear-gradient(145deg, rgba(30,30,30,0.95) 0%, rgba(45,45,45,0.95) 100%)',
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-            minWidth: '400px',
-            zIndex: 9999
-          }
-        }}
-      >
-        <DialogTitle sx={{ color: '#2196F3', fontWeight: 'bold', fontSize: '1.5rem' }}>Token Created Successfully!</DialogTitle>
-        <DialogContent>
+          }}
+        >
+          <Typography
+            variant="h5"
+            sx={{
+              color: '#2196F3',
+              fontWeight: 'bold',
+              mb: 3,
+              textAlign: 'center'
+            }}
+          >
+            Token Created Successfully!
+          </Typography>
+
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1, fontWeight: 'bold' }}>
               Token Address:
             </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
               gap: 1,
               backgroundColor: 'rgba(255,255,255,0.05)',
               p: 2,
@@ -407,17 +412,17 @@ export const CreateToken: FC = () => {
               wordBreak: 'break-all'
             }}>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
-                {tokenInfo?.mintAddress}
+                {tokenInfo.mintAddress}
               </Typography>
               <Button
                 size="small"
-                onClick={() => handleCopyAddress(tokenInfo?.mintAddress || '')}
+                onClick={() => handleCopyAddress(tokenInfo.mintAddress)}
                 sx={{ minWidth: 'auto', ml: 1 }}
               >
                 <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Button>
               <Link
-                href={getExplorerUrl(tokenInfo?.mintAddress || '', 'token')}
+                href={getExplorerUrl(tokenInfo.mintAddress, 'token')}
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ display: 'flex', ml: 1 }}
@@ -431,9 +436,9 @@ export const CreateToken: FC = () => {
             <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1, fontWeight: 'bold' }}>
               Token Account:
             </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
               gap: 1,
               backgroundColor: 'rgba(255,255,255,0.05)',
               p: 2,
@@ -441,17 +446,17 @@ export const CreateToken: FC = () => {
               wordBreak: 'break-all'
             }}>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
-                {tokenInfo?.tokenAccountAddress}
+                {tokenInfo.tokenAccountAddress}
               </Typography>
               <Button
                 size="small"
-                onClick={() => handleCopyAddress(tokenInfo?.tokenAccountAddress || '')}
+                onClick={() => handleCopyAddress(tokenInfo.tokenAccountAddress)}
                 sx={{ minWidth: 'auto', ml: 1 }}
               >
                 <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Button>
               <Link
-                href={getExplorerUrl(tokenInfo?.tokenAccountAddress || '', 'address')}
+                href={getExplorerUrl(tokenInfo.tokenAccountAddress, 'address')}
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ display: 'flex', ml: 1 }}
@@ -460,24 +465,8 @@ export const CreateToken: FC = () => {
               </Link>
             </Box>
           </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setOpenDialog(false)}
-            variant="contained"
-            sx={{ 
-              color: 'white',
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-              '&:hover': {
-                background: 'linear-gradient(45deg, #1E88E5 30%, #1CB5E0 90%)',
-              },
-              m: 2
-            }}
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Paper>
+      )}
 
       <Snackbar
         open={!!error}
