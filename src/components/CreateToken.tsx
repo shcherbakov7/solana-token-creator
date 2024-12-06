@@ -88,8 +88,14 @@ export const CreateToken: FC = () => {
         
         // Calculate required lamports
         const mintSpace = 82;
-        const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
-        const ataRent = await connection.getMinimumBalanceForRentExemption(165);
+        const mintRent = await connection.getMinimumBalanceForRentExemption(
+          mintSpace,
+          'confirmed'
+        );
+        const ataRent = await connection.getMinimumBalanceForRentExemption(
+          165,
+          'confirmed'
+        );
         
         // Check wallet balance
         const balance = await connection.getBalance(publicKey);
