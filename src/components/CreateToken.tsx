@@ -81,6 +81,8 @@ export const CreateToken: FC = () => {
       const mintKeypair = Keypair.generate();
       
       try {
+        console.log('Starting token creation process...');
+        
         // Calculate all the required lamports
         const mintSpace = 82;
         const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
@@ -91,43 +93,34 @@ export const CreateToken: FC = () => {
           publicKey
         );
 
-        // Create a single transaction with all instructions
-        const transaction = new Transaction();
+        console.log('Creating transaction...');
         
-        // Add create account instruction with required lamports
-        transaction.add(
+        // Create transaction and add all instructions
+        const transaction = new Transaction().add(
+          // Create account
           SystemProgram.createAccount({
             fromPubkey: publicKey,
             newAccountPubkey: mintKeypair.publicKey,
             space: mintSpace,
             lamports: mintRent,
             programId: TOKEN_PROGRAM_ID,
-          })
-        );
-
-        // Add initialize mint instruction
-        transaction.add(
+          }),
+          // Initialize mint
           createInitializeMintInstruction(
             mintKeypair.publicKey,
             Number(decimals),
             publicKey,
             publicKey,
             TOKEN_PROGRAM_ID
-          )
-        );
-
-        // Add create associated token account instruction
-        transaction.add(
+          ),
+          // Create associated token account
           createAssociatedTokenAccountInstruction(
             publicKey,
             associatedTokenAddress,
             publicKey,
             mintKeypair.publicKey
-          )
-        );
-
-        // Add mint to instruction
-        transaction.add(
+          ),
+          // Mint tokens
           createMintToInstruction(
             mintKeypair.publicKey,
             associatedTokenAddress,
@@ -149,32 +142,35 @@ export const CreateToken: FC = () => {
           );
         }
 
+        console.log('Getting latest blockhash...');
+        
         // Get the latest blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
-        
-        // Sign with mint keypair first
-        transaction.sign(mintKeypair);
 
-        // Sign with wallet
+        console.log('Signing with mint keypair...');
+        transaction.partialSign(mintKeypair);
+
+        console.log('Requesting wallet signature...');
         const signedTx = await signTransaction(transaction);
 
-        // Send transaction
+        console.log('Sending transaction...');
         const signature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: false,
-          preflightCommitment: 'confirmed'
+          preflightCommitment: 'confirmed',
+          maxRetries: 3
         });
 
-        // Wait for confirmation
+        console.log('Waiting for confirmation...');
         const confirmation = await connection.confirmTransaction({
           blockhash,
           lastValidBlockHeight,
           signature
-        });
+        }, 'confirmed');
 
         if (confirmation.value.err) {
-          throw new Error('Transaction failed to confirm');
+          throw new Error(`Transaction failed to confirm: ${JSON.stringify(confirmation.value.err)}`);
         }
 
         console.log('Token created successfully:', {
@@ -204,7 +200,6 @@ export const CreateToken: FC = () => {
         } else {
           let errorMessage = 'Transaction failed';
           
-          // Check if there are logs in the error
           if (txError.logs) {
             console.error('Transaction logs:', txError.logs);
             errorMessage += `: ${txError.logs.join('\n')}`;
