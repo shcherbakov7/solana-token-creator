@@ -9,7 +9,7 @@ import {
   createMintToInstruction,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
+} from '@solana/spl_token';
 import { 
   Keypair, 
   Transaction, 
@@ -38,7 +38,7 @@ import { ContentCopy, Launch } from '@mui/icons-material';
 export const CreateToken: FC = () => {
   const { publicKey, signTransaction } = useWallet();
   const connection = useMemo(
-    () => new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'),
+    () => new Connection('https://rpc.ankr.com/solana', 'confirmed'),
     []
   );
   const [tokenName, setTokenName] = useState('');
