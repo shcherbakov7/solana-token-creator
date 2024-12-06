@@ -7,6 +7,7 @@ import {
   Transaction,
   SystemProgram,
   LAMPORTS_PER_SOL,
+  Commitment,
 } from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
@@ -88,8 +89,21 @@ export const CreateToken: FC = () => {
         
         // Calculate required lamports
         const mintSpace = 82;
-        const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
-        const ataRent = await connection.getMinimumBalanceForRentExemption(165);
+        console.log('Mint space:', mintSpace, typeof mintSpace);
+        
+        // Try with explicit type conversion and commitment
+        const commitment: Commitment = 'confirmed';
+        const mintRent = await connection.getMinimumBalanceForRentExemption(
+          Number(mintSpace),
+          commitment
+        );
+        console.log('Mint rent:', mintRent);
+        
+        const ataRent = await connection.getMinimumBalanceForRentExemption(
+          Number(165),
+          commitment
+        );
+        console.log('ATA rent:', ataRent);
         
         // Check wallet balance
         const balance = await connection.getBalance(publicKey);
