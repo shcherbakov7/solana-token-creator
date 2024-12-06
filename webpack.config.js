@@ -8,10 +8,23 @@ module.exports = {
     filename: 'bundle.js',
     publicPath: '/solana-token-creator/',
   },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+    fallback: {
+      "stream": require.resolve("stream-browserify"),
+      "buffer": require.resolve("buffer/"),
+      "crypto": require.resolve("crypto-browserify"),
+      "process": require.resolve("process/browser"),
+      "http": require.resolve("stream-http"),
+      "https": require.resolve("https-browserify"),
+      "zlib": require.resolve("browserify-zlib"),
+      "vm": require.resolve("vm-browserify")
+    }
+  },
   module: {
     rules: [
       {
-        test: /\.(ts|tsx)$/,
+        test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
       },
@@ -21,20 +34,6 @@ module.exports = {
       },
     ],
   },
-  resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
-    fallback: {
-      "crypto": require.resolve("crypto-browserify"),
-      "stream": require.resolve("stream-browserify"),
-      "assert": require.resolve("assert/"),
-      "http": require.resolve("stream-http"),
-      "https": require.resolve("https-browserify"),
-      "os": require.resolve("os-browserify/browser"),
-      "url": require.resolve("url/"),
-      "buffer": require.resolve("buffer/"),
-      "zlib": require.resolve("browserify-zlib"),
-    },
-  },
   plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html',
@@ -42,8 +41,10 @@ module.exports = {
   ],
   devServer: {
     static: {
-      directory: path.join(__dirname, 'docs'),
+      directory: path.join(__dirname, 'public'),
     },
+    compress: true,
     port: 3006,
+    historyApiFallback: true,
   },
 };
