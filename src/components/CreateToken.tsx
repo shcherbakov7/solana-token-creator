@@ -81,8 +81,9 @@ export const CreateToken: FC = () => {
       const mintKeypair = Keypair.generate();
       
       try {
-        // Calculate rent-exempt balance
-        const lamports = await connection.getMinimumBalanceForRentExemption(82);
+        // Calculate all the required lamports
+        const mintSpace = 82;
+        const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
         
         // Get associated token account address
         const associatedTokenAddress = await getAssociatedTokenAddress(
@@ -92,14 +93,14 @@ export const CreateToken: FC = () => {
 
         // Create a single transaction with all instructions
         const transaction = new Transaction();
-
-        // Add create account instruction
+        
+        // Add create account instruction with required lamports
         transaction.add(
           SystemProgram.createAccount({
             fromPubkey: publicKey,
             newAccountPubkey: mintKeypair.publicKey,
-            space: 82,
-            lamports,
+            space: mintSpace,
+            lamports: mintRent,
             programId: TOKEN_PROGRAM_ID,
           })
         );
@@ -121,9 +122,7 @@ export const CreateToken: FC = () => {
             publicKey,
             associatedTokenAddress,
             publicKey,
-            mintKeypair.publicKey,
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
+            mintKeypair.publicKey
           )
         );
 
@@ -134,8 +133,7 @@ export const CreateToken: FC = () => {
             associatedTokenAddress,
             publicKey,
             1000000000000,
-            [],
-            TOKEN_PROGRAM_ID
+            []
           )
         );
 
@@ -146,26 +144,38 @@ export const CreateToken: FC = () => {
               mintKeypair.publicKey,
               publicKey,
               AuthorityType.FreezeAccount,
-              null,
-              [],
-              TOKEN_PROGRAM_ID
+              null
             )
           );
         }
 
-        // Set recent blockhash and fee payer
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        // Get the latest blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
         
-        // Sign with mint keypair
+        // Sign with mint keypair first
         transaction.sign(mintKeypair);
 
         // Sign with wallet
         const signedTx = await signTransaction(transaction);
 
-        // Send and confirm transaction
-        const signature = await connection.sendRawTransaction(signedTx.serialize());
-        await connection.confirmTransaction(signature);
+        // Send transaction
+        const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed'
+        });
+
+        // Wait for confirmation
+        const confirmation = await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature
+        });
+
+        if (confirmation.value.err) {
+          throw new Error('Transaction failed to confirm');
+        }
 
         console.log('Token created successfully:', {
           mintAddress: mintKeypair.publicKey.toString(),
@@ -186,18 +196,29 @@ export const CreateToken: FC = () => {
         setDecimals('9');
         setRevokeFreeze(false);
 
-      } catch (txError) {
+      } catch (txError: any) {
+        console.error('Transaction error:', txError);
+        
         if (txError.message.includes('User rejected')) {
           setError('Transaction was rejected in wallet. Please approve the transaction to create the token.');
         } else {
-          setError(`Transaction failed: ${txError.message}`);
+          let errorMessage = 'Transaction failed';
+          
+          // Check if there are logs in the error
+          if (txError.logs) {
+            console.error('Transaction logs:', txError.logs);
+            errorMessage += `: ${txError.logs.join('\n')}`;
+          } else {
+            errorMessage += `: ${txError.message}`;
+          }
+          
+          setError(errorMessage);
         }
-        console.error('Transaction error:', txError);
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating token:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create token');
+      setError(err.message || 'Failed to create token');
     } finally {
       setLoading(false);
     }
