@@ -57,9 +57,7 @@ export const CreateToken: FC = () => {
   };
 
   const getExplorerUrl = (address: string, type: 'token' | 'address') => {
-    const baseUrl = 'https://explorer.solana.com';
-    const networkParam = connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : '';
-    return `${baseUrl}/${type}/${address}${networkParam}`;
+    return `https://explorer.solana.com/${type}/${address}?cluster=devnet`;
   };
 
   const handleCreateToken = async () => {
@@ -77,6 +75,7 @@ export const CreateToken: FC = () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
+      setTokenInfo(null);
 
       // Create mint account
       const mintKeypair = Keypair.generate();
@@ -85,8 +84,17 @@ export const CreateToken: FC = () => {
         // Calculate rent-exempt balance
         const lamports = await connection.getMinimumBalanceForRentExemption(82);
         
-        // Create account transaction
-        const createAccountTx = new Transaction().add(
+        // Get associated token account address
+        const associatedTokenAddress = await getAssociatedTokenAddress(
+          mintKeypair.publicKey,
+          publicKey
+        );
+
+        // Create a single transaction with all instructions
+        const transaction = new Transaction();
+
+        // Add create account instruction
+        transaction.add(
           SystemProgram.createAccount({
             fromPubkey: publicKey,
             newAccountPubkey: mintKeypair.publicKey,
@@ -96,19 +104,8 @@ export const CreateToken: FC = () => {
           })
         );
 
-        createAccountTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        createAccountTx.feePayer = publicKey;
-        createAccountTx.sign(mintKeypair);
-
-        // Sign transaction with wallet
-        const signedTx = await signTransaction(createAccountTx);
-
-        // Send and confirm transaction
-        const signature = await connection.sendRawTransaction(signedTx.serialize());
-        await connection.confirmTransaction(signature);
-
-        // Initialize mint
-        const initMintTx = new Transaction().add(
+        // Add initialize mint instruction
+        transaction.add(
           createInitializeMintInstruction(
             mintKeypair.publicKey,
             Number(decimals),
@@ -118,24 +115,8 @@ export const CreateToken: FC = () => {
           )
         );
 
-        initMintTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        initMintTx.feePayer = publicKey;
-
-        // Sign transaction with wallet
-        const signedInitMintTx = await signTransaction(initMintTx);
-
-        // Send and confirm transaction
-        const initMintSignature = await connection.sendRawTransaction(signedInitMintTx.serialize());
-        await connection.confirmTransaction(initMintSignature);
-
-        // Get associated token account address
-        const associatedTokenAddress = await getAssociatedTokenAddress(
-          mintKeypair.publicKey,
-          publicKey
-        );
-
-        // Create associated token account
-        const createAtaTx = new Transaction().add(
+        // Add create associated token account instruction
+        transaction.add(
           createAssociatedTokenAccountInstruction(
             publicKey,
             associatedTokenAddress,
@@ -146,18 +127,8 @@ export const CreateToken: FC = () => {
           )
         );
 
-        createAtaTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        createAtaTx.feePayer = publicKey;
-
-        // Sign transaction with wallet
-        const signedAtaTx = await signTransaction(createAtaTx);
-
-        // Send and confirm transaction
-        const ataSignature = await connection.sendRawTransaction(signedAtaTx.serialize());
-        await connection.confirmTransaction(ataSignature);
-
-        // Mint initial supply
-        const mintToTx = new Transaction().add(
+        // Add mint to instruction
+        transaction.add(
           createMintToInstruction(
             mintKeypair.publicKey,
             associatedTokenAddress,
@@ -168,19 +139,9 @@ export const CreateToken: FC = () => {
           )
         );
 
-        mintToTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        mintToTx.feePayer = publicKey;
-
-        // Sign transaction with wallet
-        const signedMintToTx = await signTransaction(mintToTx);
-
-        // Send and confirm transaction
-        const mintToSignature = await connection.sendRawTransaction(signedMintToTx.serialize());
-        await connection.confirmTransaction(mintToSignature);
-
-        // If revokeFreeze is true, remove freeze authority
+        // Add revoke freeze authority instruction if needed
         if (revokeFreeze) {
-          const revokeTx = new Transaction().add(
+          transaction.add(
             createSetAuthorityInstruction(
               mintKeypair.publicKey,
               publicKey,
@@ -190,19 +151,22 @@ export const CreateToken: FC = () => {
               TOKEN_PROGRAM_ID
             )
           );
-
-          revokeTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-          revokeTx.feePayer = publicKey;
-
-          // Sign transaction with wallet
-          const signedRevokeTx = await signTransaction(revokeTx);
-
-          // Send and confirm transaction
-          const revokeSignature = await connection.sendRawTransaction(signedRevokeTx.serialize());
-          await connection.confirmTransaction(revokeSignature);
         }
 
-        // All transactions successful
+        // Set recent blockhash and fee payer
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        transaction.feePayer = publicKey;
+        
+        // Sign with mint keypair
+        transaction.sign(mintKeypair);
+
+        // Sign with wallet
+        const signedTx = await signTransaction(transaction);
+
+        // Send and confirm transaction
+        const signature = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(signature);
+
         console.log('Token created successfully:', {
           mintAddress: mintKeypair.publicKey.toString(),
           tokenAccountAddress: associatedTokenAddress.toString()
@@ -238,6 +202,12 @@ export const CreateToken: FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (tokenInfo) {
+      console.log('TokenInfo in effect:', tokenInfo);
+    }
+  }, [tokenInfo]);
 
   return (
     <>
