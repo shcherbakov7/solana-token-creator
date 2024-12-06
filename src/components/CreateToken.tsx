@@ -56,7 +56,8 @@ export const CreateToken: FC = () => {
           id: 1,
           method: 'getBalance',
           params: [
-            address.toString()
+            address.toString(),
+            { commitment: 'confirmed' }
           ]
         })
       });
