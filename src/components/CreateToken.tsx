@@ -83,7 +83,7 @@ export const CreateToken: FC = () => {
       try {
         console.log('Starting token creation process...');
         
-        // Calculate all the required lamports
+        // Get minimum balances
         const mintSpace = 82;
         const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
         
@@ -93,34 +93,57 @@ export const CreateToken: FC = () => {
           publicKey
         );
 
+        // Get ATA rent
+        const ataRent = await connection.getMinimumBalanceForRentExemption(165);
+
         console.log('Creating transaction...');
         
-        // Create transaction and add all instructions
-        const transaction = new Transaction().add(
-          // Create account
+        // Create instructions array
+        const instructions: TransactionInstruction[] = [];
+
+        // Create account for token mint
+        instructions.push(
           SystemProgram.createAccount({
             fromPubkey: publicKey,
             newAccountPubkey: mintKeypair.publicKey,
             space: mintSpace,
             lamports: mintRent,
             programId: TOKEN_PROGRAM_ID,
-          }),
-          // Initialize mint
+          })
+        );
+
+        // Initialize mint
+        instructions.push(
           createInitializeMintInstruction(
             mintKeypair.publicKey,
             Number(decimals),
             publicKey,
             publicKey,
             TOKEN_PROGRAM_ID
-          ),
-          // Create associated token account
+          )
+        );
+
+        // Fund payer for ATA creation
+        instructions.push(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: publicKey,
+            lamports: ataRent
+          })
+        );
+
+        // Create associated token account
+        instructions.push(
           createAssociatedTokenAccountInstruction(
             publicKey,
             associatedTokenAddress,
             publicKey,
             mintKeypair.publicKey
-          ),
-          // Mint tokens
+          )
+        );
+
+        // Mint tokens
+        instructions.push(
           createMintToInstruction(
             mintKeypair.publicKey,
             associatedTokenAddress,
@@ -130,9 +153,9 @@ export const CreateToken: FC = () => {
           )
         );
 
-        // Add revoke freeze authority instruction if needed
+        // Add revoke freeze authority if needed
         if (revokeFreeze) {
-          transaction.add(
+          instructions.push(
             createSetAuthorityInstruction(
               mintKeypair.publicKey,
               publicKey,
@@ -143,11 +166,16 @@ export const CreateToken: FC = () => {
         }
 
         console.log('Getting latest blockhash...');
-        
-        // Get the latest blockhash
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
+
+        // Create transaction and add all instructions
+        const transaction = new Transaction({
+          feePayer: publicKey,
+          recentBlockhash: blockhash
+        });
+        
+        // Add all instructions to transaction
+        instructions.forEach(instruction => transaction.add(instruction));
 
         console.log('Signing with mint keypair...');
         transaction.partialSign(mintKeypair);
