@@ -94,8 +94,9 @@ export const CreateToken: FC = () => {
         
         console.log('Using hardcoded values - Mint rent:', mintRent, 'ATA rent:', ataRent);
         
-        // Check wallet balance
-        const balance = await connection.getBalance(publicKey);
+        // Check wallet balance with commitment parameter
+        const balance = await connection.getBalance(publicKey, 'confirmed');
+        console.log('Wallet balance:', balance);
         const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
         
         alert(`Balance check:
