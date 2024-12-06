@@ -9,7 +9,7 @@ import {
   createMintToInstruction,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
+} from '@solana/spl_token';
 import { 
   Keypair, 
   Transaction, 
@@ -79,149 +79,163 @@ export const CreateToken: FC = () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
+      setOpenDialog(false); // Reset dialog state
 
       // Create mint account
       const mintKeypair = Keypair.generate();
       
-      // Calculate rent-exempt balance
-      const lamports = await connection.getMinimumBalanceForRentExemption(82);
-      
-      // Create account transaction
-      const createAccountTx = new Transaction().add(
-        SystemProgram.createAccount({
-          fromPubkey: publicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: 82,
-          lamports,
-          programId: TOKEN_PROGRAM_ID,
-        })
-      );
+      try {
+        // Calculate rent-exempt balance
+        const lamports = await connection.getMinimumBalanceForRentExemption(82);
+        
+        // Create account transaction
+        const createAccountTx = new Transaction().add(
+          SystemProgram.createAccount({
+            fromPubkey: publicKey,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: 82,
+            lamports,
+            programId: TOKEN_PROGRAM_ID,
+          })
+        );
 
-      createAccountTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      createAccountTx.feePayer = publicKey;
-      createAccountTx.sign(mintKeypair);
+        createAccountTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        createAccountTx.feePayer = publicKey;
+        createAccountTx.sign(mintKeypair);
 
-      // Sign transaction with wallet
-      const signedTx = await signTransaction(createAccountTx);
+        // Sign transaction with wallet
+        const signedTx = await signTransaction(createAccountTx);
 
-      // Send and confirm transaction
-      const signature = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(signature);
+        // Send and confirm transaction
+        const signature = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(signature);
 
-      // Initialize mint
-      const initMintTx = new Transaction().add(
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          Number(decimals),
-          publicKey,
-          publicKey,
-          TOKEN_PROGRAM_ID
-        )
-      );
-
-      initMintTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      initMintTx.feePayer = publicKey;
-
-      // Sign transaction with wallet
-      const signedInitMintTx = await signTransaction(initMintTx);
-
-      // Send and confirm transaction
-      const initMintSignature = await connection.sendRawTransaction(signedInitMintTx.serialize());
-      await connection.confirmTransaction(initMintSignature);
-
-      // Get associated token account address
-      const associatedTokenAddress = await getAssociatedTokenAddress(
-        mintKeypair.publicKey,
-        publicKey
-      );
-
-      // Create associated token account
-      const createAtaTx = new Transaction().add(
-        createAssociatedTokenAccountInstruction(
-          publicKey,
-          associatedTokenAddress,
-          publicKey,
-          mintKeypair.publicKey,
-          TOKEN_PROGRAM_ID,
-          ASSOCIATED_TOKEN_PROGRAM_ID
-        )
-      );
-
-      createAtaTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      createAtaTx.feePayer = publicKey;
-
-      // Sign transaction with wallet
-      const signedAtaTx = await signTransaction(createAtaTx);
-
-      // Send and confirm transaction
-      const ataSignature = await connection.sendRawTransaction(signedAtaTx.serialize());
-      await connection.confirmTransaction(ataSignature);
-
-      // Mint initial supply
-      const mintToTx = new Transaction().add(
-        createMintToInstruction(
-          mintKeypair.publicKey,
-          associatedTokenAddress,
-          publicKey,
-          1000000000000,
-          [],
-          TOKEN_PROGRAM_ID
-        )
-      );
-
-      mintToTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      mintToTx.feePayer = publicKey;
-
-      // Sign transaction with wallet
-      const signedMintToTx = await signTransaction(mintToTx);
-
-      // Send and confirm transaction
-      const mintToSignature = await connection.sendRawTransaction(signedMintToTx.serialize());
-      await connection.confirmTransaction(mintToSignature);
-
-      // If revokeFreeze is true, remove freeze authority
-      if (revokeFreeze) {
-        const revokeTx = new Transaction().add(
-          createSetAuthorityInstruction(
+        // Initialize mint
+        const initMintTx = new Transaction().add(
+          createInitializeMintInstruction(
             mintKeypair.publicKey,
+            Number(decimals),
             publicKey,
-            AuthorityType.FreezeAccount,
-            null,
+            publicKey,
+            TOKEN_PROGRAM_ID
+          )
+        );
+
+        initMintTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        initMintTx.feePayer = publicKey;
+
+        // Sign transaction with wallet
+        const signedInitMintTx = await signTransaction(initMintTx);
+
+        // Send and confirm transaction
+        const initMintSignature = await connection.sendRawTransaction(signedInitMintTx.serialize());
+        await connection.confirmTransaction(initMintSignature);
+
+        // Get associated token account address
+        const associatedTokenAddress = await getAssociatedTokenAddress(
+          mintKeypair.publicKey,
+          publicKey
+        );
+
+        // Create associated token account
+        const createAtaTx = new Transaction().add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            associatedTokenAddress,
+            publicKey,
+            mintKeypair.publicKey,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+          )
+        );
+
+        createAtaTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        createAtaTx.feePayer = publicKey;
+
+        // Sign transaction with wallet
+        const signedAtaTx = await signTransaction(createAtaTx);
+
+        // Send and confirm transaction
+        const ataSignature = await connection.sendRawTransaction(signedAtaTx.serialize());
+        await connection.confirmTransaction(ataSignature);
+
+        // Mint initial supply
+        const mintToTx = new Transaction().add(
+          createMintToInstruction(
+            mintKeypair.publicKey,
+            associatedTokenAddress,
+            publicKey,
+            1000000000000,
             [],
             TOKEN_PROGRAM_ID
           )
         );
 
-        revokeTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        revokeTx.feePayer = publicKey;
+        mintToTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        mintToTx.feePayer = publicKey;
 
         // Sign transaction with wallet
-        const signedRevokeTx = await signTransaction(revokeTx);
+        const signedMintToTx = await signTransaction(mintToTx);
 
         // Send and confirm transaction
-        const revokeSignature = await connection.sendRawTransaction(signedRevokeTx.serialize());
-        await connection.confirmTransaction(revokeSignature);
+        const mintToSignature = await connection.sendRawTransaction(signedMintToTx.serialize());
+        await connection.confirmTransaction(mintToSignature);
+
+        // If revokeFreeze is true, remove freeze authority
+        if (revokeFreeze) {
+          const revokeTx = new Transaction().add(
+            createSetAuthorityInstruction(
+              mintKeypair.publicKey,
+              publicKey,
+              AuthorityType.FreezeAccount,
+              null,
+              [],
+              TOKEN_PROGRAM_ID
+            )
+          );
+
+          revokeTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+          revokeTx.feePayer = publicKey;
+
+          // Sign transaction with wallet
+          const signedRevokeTx = await signTransaction(revokeTx);
+
+          // Send and confirm transaction
+          const revokeSignature = await connection.sendRawTransaction(signedRevokeTx.serialize());
+          await connection.confirmTransaction(revokeSignature);
+        }
+
+        // All transactions successful
+        console.log('Token created successfully:', {
+          mintAddress: mintKeypair.publicKey.toString(),
+          tokenAccountAddress: associatedTokenAddress.toString()
+        });
+        
+        setTokenInfo({
+          mintAddress: mintKeypair.publicKey.toString(),
+          tokenAccountAddress: associatedTokenAddress.toString(),
+        });
+        
+        setSuccess('Token created successfully!');
+        
+        // Reset form
+        setTokenName('');
+        setTokenSymbol('');
+        setDecimals('9');
+        setRevokeFreeze(false);
+        
+        // Show modal with token info
+        setOpenDialog(true);
+
+      } catch (txError) {
+        if (txError.message.includes('User rejected')) {
+          setError('Transaction was rejected in wallet. Please approve the transaction to create the token.');
+        } else {
+          setError(`Transaction failed: ${txError.message}`);
+        }
+        console.error('Transaction error:', txError);
       }
 
-      setSuccess('Token created successfully!');
-      console.log('Token created:', {
-        mintAddress: mintKeypair.publicKey.toString(),
-        tokenAccountAddress: associatedTokenAddress.toString()
-      });
-      
-      setTokenInfo({
-        mintAddress: mintKeypair.publicKey.toString(),
-        tokenAccountAddress: associatedTokenAddress.toString(),
-      });
-      console.log('Setting openDialog to true');
-      setOpenDialog(true);
-      console.log('Current openDialog state:', openDialog);
-
-      // Reset form
-      setTokenName('');
-      setTokenSymbol('');
-      setDecimals('9');
-      setRevokeFreeze(false);
     } catch (err) {
       console.error('Error creating token:', err);
       setError(err instanceof Error ? err.message : 'Failed to create token');
