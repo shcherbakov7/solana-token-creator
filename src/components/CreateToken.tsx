@@ -362,13 +362,14 @@ export const CreateToken: FC = () => {
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+            minWidth: '400px',
           }
         }}
       >
-        <DialogTitle sx={{ color: '#2196F3' }}>Token Created Successfully!</DialogTitle>
+        <DialogTitle sx={{ color: '#2196F3', fontWeight: 'bold', fontSize: '1.5rem' }}>Token Created Successfully!</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1, fontWeight: 'bold' }}>
               Token Address:
             </Typography>
             <Box sx={{ 
@@ -376,8 +377,9 @@ export const CreateToken: FC = () => {
               alignItems: 'center', 
               gap: 1,
               backgroundColor: 'rgba(255,255,255,0.05)',
-              p: 1,
+              p: 2,
               borderRadius: 1,
+              wordBreak: 'break-all'
             }}>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
                 {tokenInfo?.mintAddress}
@@ -385,7 +387,7 @@ export const CreateToken: FC = () => {
               <Button
                 size="small"
                 onClick={() => handleCopyAddress(tokenInfo?.mintAddress || '')}
-                sx={{ minWidth: 'auto' }}
+                sx={{ minWidth: 'auto', ml: 1 }}
               >
                 <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Button>
@@ -393,7 +395,7 @@ export const CreateToken: FC = () => {
                 href={getExplorerUrl(tokenInfo?.mintAddress || '', 'token')}
                 target="_blank"
                 rel="noopener noreferrer"
-                sx={{ display: 'flex' }}
+                sx={{ display: 'flex', ml: 1 }}
               >
                 <Launch sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Link>
@@ -401,7 +403,7 @@ export const CreateToken: FC = () => {
           </Box>
 
           <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1, fontWeight: 'bold' }}>
               Token Account:
             </Typography>
             <Box sx={{ 
@@ -409,8 +411,9 @@ export const CreateToken: FC = () => {
               alignItems: 'center', 
               gap: 1,
               backgroundColor: 'rgba(255,255,255,0.05)',
-              p: 1,
+              p: 2,
               borderRadius: 1,
+              wordBreak: 'break-all'
             }}>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
                 {tokenInfo?.tokenAccountAddress}
@@ -418,7 +421,7 @@ export const CreateToken: FC = () => {
               <Button
                 size="small"
                 onClick={() => handleCopyAddress(tokenInfo?.tokenAccountAddress || '')}
-                sx={{ minWidth: 'auto' }}
+                sx={{ minWidth: 'auto', ml: 1 }}
               >
                 <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Button>
@@ -426,7 +429,7 @@ export const CreateToken: FC = () => {
                 href={getExplorerUrl(tokenInfo?.tokenAccountAddress || '', 'address')}
                 target="_blank"
                 rel="noopener noreferrer"
-                sx={{ display: 'flex' }}
+                sx={{ display: 'flex', ml: 1 }}
               >
                 <Launch sx={{ color: 'rgba(255,255,255,0.7)' }} />
               </Link>
@@ -436,11 +439,14 @@ export const CreateToken: FC = () => {
         <DialogActions>
           <Button 
             onClick={() => setOpenDialog(false)}
+            variant="contained"
             sx={{ 
-              color: '#2196F3',
+              color: 'white',
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
               '&:hover': {
-                backgroundColor: 'rgba(33, 150, 243, 0.08)',
+                background: 'linear-gradient(45deg, #1E88E5 30%, #1CB5E0 90%)',
               },
+              m: 2
             }}
           >
             Close
