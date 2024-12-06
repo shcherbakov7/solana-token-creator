@@ -99,6 +99,8 @@ export const CreateToken: FC = () => {
         
         console.log('Current balance:', (balance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
         console.log('Required balance:', (requiredBalance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
+        console.log('Mint rent:', (mintRent / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
+        console.log('ATA rent:', (ataRent / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
         
         if (balance < requiredBalance) {
           throw new Error(`Insufficient balance. Please ensure you have at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL in your wallet. Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
@@ -111,6 +113,8 @@ export const CreateToken: FC = () => {
         );
 
         console.log('Creating mint account...');
+        console.log('Mint public key:', mintKeypair.publicKey.toString());
+        console.log('Associated token address:', associatedTokenAddress.toString());
         
         // First transaction: Create and initialize mint
         const createMintTx = new Transaction().add(
@@ -134,7 +138,7 @@ export const CreateToken: FC = () => {
 
         // Get the latest blockhash
         const { blockhash: mintBlockhash, lastValidBlockHeight: mintLastValid } = 
-          await connection.getLatestBlockhash('confirmed');
+          await connection.getLatestBlockhash('finalized');
 
         createMintTx.recentBlockhash = mintBlockhash;
         createMintTx.feePayer = publicKey;
@@ -146,7 +150,8 @@ export const CreateToken: FC = () => {
         console.log('Sending mint transaction...');
         const mintSignature = await connection.sendRawTransaction(signedMintTx.serialize(), {
           skipPreflight: false,
-          preflightCommitment: 'confirmed',
+          preflightCommitment: 'finalized',
+          maxRetries: 5
         });
 
         console.log('Waiting for mint confirmation...');
@@ -154,14 +159,16 @@ export const CreateToken: FC = () => {
           blockhash: mintBlockhash,
           lastValidBlockHeight: mintLastValid,
           signature: mintSignature
-        }, 'confirmed');
+        }, 'finalized');
 
         if (mintConfirmation.value.err) {
           throw new Error(`Mint creation failed: ${JSON.stringify(mintConfirmation.value.err)}`);
         }
 
+        console.log('Mint transaction confirmed:', mintSignature);
+        
         // Add delay between transactions
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         console.log('Creating ATA and minting tokens...');
         
@@ -198,7 +205,7 @@ export const CreateToken: FC = () => {
 
         // Get fresh blockhash for second transaction
         const { blockhash: tokenBlockhash, lastValidBlockHeight: tokenLastValid } = 
-          await connection.getLatestBlockhash('confirmed');
+          await connection.getLatestBlockhash('finalized');
 
         mintTokensTx.recentBlockhash = tokenBlockhash;
         mintTokensTx.feePayer = publicKey;
@@ -209,7 +216,8 @@ export const CreateToken: FC = () => {
         console.log('Sending token transaction...');
         const tokenSignature = await connection.sendRawTransaction(signedTokenTx.serialize(), {
           skipPreflight: false,
-          preflightCommitment: 'confirmed',
+          preflightCommitment: 'finalized',
+          maxRetries: 5
         });
 
         console.log('Waiting for token confirmation...');
@@ -217,12 +225,13 @@ export const CreateToken: FC = () => {
           blockhash: tokenBlockhash,
           lastValidBlockHeight: tokenLastValid,
           signature: tokenSignature
-        }, 'confirmed');
+        }, 'finalized');
 
         if (tokenConfirmation.value.err) {
           throw new Error(`Token minting failed: ${JSON.stringify(tokenConfirmation.value.err)}`);
         }
 
+        console.log('Token transaction confirmed:', tokenSignature);
         console.log('Token created successfully:', {
           mintAddress: mintKeypair.publicKey.toString(),
           tokenAccountAddress: associatedTokenAddress.toString()
