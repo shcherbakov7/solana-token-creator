@@ -87,23 +87,12 @@ export const CreateToken: FC = () => {
       try {
         alert('Starting token creation process...');
         
-        // Calculate required lamports
-        const mintSpace = 82;
-        console.log('Mint space:', mintSpace, typeof mintSpace);
+        // Use hardcoded values for rent exemption
+        // These values are standard for Solana token mints and ATAs
+        const mintRent = 1461600; // Standard rent exemption for token mint (82 bytes)
+        const ataRent = 2039280;  // Standard rent exemption for ATA (165 bytes)
         
-        // Try with explicit type conversion and commitment
-        const commitment: Commitment = 'confirmed';
-        const mintRent = await connection.getMinimumBalanceForRentExemption(
-          Number(mintSpace),
-          commitment
-        );
-        console.log('Mint rent:', mintRent);
-        
-        const ataRent = await connection.getMinimumBalanceForRentExemption(
-          Number(165),
-          commitment
-        );
-        console.log('ATA rent:', ataRent);
+        console.log('Using hardcoded values - Mint rent:', mintRent, 'ATA rent:', ataRent);
         
         // Check wallet balance
         const balance = await connection.getBalance(publicKey);
@@ -135,7 +124,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
           SystemProgram.createAccount({
             fromPubkey: publicKey,
             newAccountPubkey: mintKeypair.publicKey,
-            space: mintSpace,
+            space: 82,
             lamports: mintRent,
             programId: TOKEN_PROGRAM_ID,
           }),
