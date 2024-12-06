@@ -32,9 +32,9 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
   const { publicKey, signTransaction } = useWallet();
-  const connection = new Connection('https://rpc.helius.xyz/?api-key=c9e1fc7e-2bf8-4c9f-b2c3-67945d25d8b4', {
+  const connection = new Connection('https://solana-mainnet.rpc.extrnode.com', {
     commitment: 'confirmed',
-    wsEndpoint: 'wss://rpc.helius.xyz/?api-key=c9e1fc7e-2bf8-4c9f-b2c3-67945d25d8b4'
+    confirmTransactionInitialTimeout: 60000
   });
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
