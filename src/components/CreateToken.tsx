@@ -86,7 +86,7 @@ export const CreateToken: FC = () => {
       const mintKeypair = Keypair.generate();
       
       try {
-        console.log('Starting token creation process...');
+        alert('Starting token creation process...');
         
         // Calculate required lamports
         const mintSpace = 82;
@@ -97,10 +97,11 @@ export const CreateToken: FC = () => {
         const balance = await connection.getBalance(publicKey);
         const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
         
-        console.log('Current balance:', (balance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
-        console.log('Required balance:', (requiredBalance / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
-        console.log('Mint rent:', (mintRent / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
-        console.log('ATA rent:', (ataRent / LAMPORTS_PER_SOL).toFixed(4), 'SOL');
+        alert(`Balance check:
+Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL
+Required balance: ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL
+Mint rent: ${(mintRent / LAMPORTS_PER_SOL).toFixed(4)} SOL
+ATA rent: ${(ataRent / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
         
         if (balance < requiredBalance) {
           throw new Error(`Insufficient balance. Please ensure you have at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL in your wallet. Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
@@ -112,9 +113,9 @@ export const CreateToken: FC = () => {
           publicKey
         );
 
-        console.log('Creating mint account...');
-        console.log('Mint public key:', mintKeypair.publicKey.toString());
-        console.log('Associated token address:', associatedTokenAddress.toString());
+        alert(`Addresses:
+Mint public key: ${mintKeypair.publicKey.toString()}
+Associated token address: ${associatedTokenAddress.toString()}`);
         
         // First transaction: Create and initialize mint
         const createMintTx = new Transaction().add(
@@ -143,18 +144,19 @@ export const CreateToken: FC = () => {
         createMintTx.recentBlockhash = mintBlockhash;
         createMintTx.feePayer = publicKey;
         
-        console.log('Signing mint transaction...');
+        alert('Signing mint transaction...');
         createMintTx.partialSign(mintKeypair);
         const signedMintTx = await signTransaction(createMintTx);
 
-        console.log('Sending mint transaction...');
+        alert('Sending mint transaction...');
         const mintSignature = await connection.sendRawTransaction(signedMintTx.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'finalized',
           maxRetries: 5
         });
 
-        console.log('Waiting for mint confirmation...');
+        alert(`Mint transaction sent: ${mintSignature}`);
+        
         const mintConfirmation = await connection.confirmTransaction({
           blockhash: mintBlockhash,
           lastValidBlockHeight: mintLastValid,
@@ -165,12 +167,12 @@ export const CreateToken: FC = () => {
           throw new Error(`Mint creation failed: ${JSON.stringify(mintConfirmation.value.err)}`);
         }
 
-        console.log('Mint transaction confirmed:', mintSignature);
+        alert('Mint transaction confirmed. Waiting before next transaction...');
         
         // Add delay between transactions
         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        console.log('Creating ATA and minting tokens...');
+        alert('Starting second transaction...');
         
         // Second transaction: Create ATA and mint tokens
         const mintTokensTx = new Transaction().add(
@@ -210,17 +212,18 @@ export const CreateToken: FC = () => {
         mintTokensTx.recentBlockhash = tokenBlockhash;
         mintTokensTx.feePayer = publicKey;
 
-        console.log('Signing token transaction...');
+        alert('Signing token transaction...');
         const signedTokenTx = await signTransaction(mintTokensTx);
 
-        console.log('Sending token transaction...');
+        alert('Sending token transaction...');
         const tokenSignature = await connection.sendRawTransaction(signedTokenTx.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'finalized',
           maxRetries: 5
         });
 
-        console.log('Waiting for token confirmation...');
+        alert(`Token transaction sent: ${tokenSignature}`);
+        
         const tokenConfirmation = await connection.confirmTransaction({
           blockhash: tokenBlockhash,
           lastValidBlockHeight: tokenLastValid,
@@ -231,11 +234,7 @@ export const CreateToken: FC = () => {
           throw new Error(`Token minting failed: ${JSON.stringify(tokenConfirmation.value.err)}`);
         }
 
-        console.log('Token transaction confirmed:', tokenSignature);
-        console.log('Token created successfully:', {
-          mintAddress: mintKeypair.publicKey.toString(),
-          tokenAccountAddress: associatedTokenAddress.toString()
-        });
+        alert('Token transaction confirmed!');
         
         const newTokenInfo = {
           mintAddress: mintKeypair.publicKey.toString(),
@@ -253,6 +252,7 @@ export const CreateToken: FC = () => {
 
       } catch (txError: any) {
         console.error('Transaction error:', txError);
+        alert(`Transaction error: ${txError.message}`);
         
         if (txError.message.includes('User rejected')) {
           setError('Transaction was rejected in wallet. Please approve the transaction to create the token.');
@@ -272,6 +272,7 @@ export const CreateToken: FC = () => {
 
     } catch (err: any) {
       console.error('Error creating token:', err);
+      alert(`Error creating token: ${err.message}`);
       setError(err.message || 'Failed to create token');
     } finally {
       setLoading(false);
