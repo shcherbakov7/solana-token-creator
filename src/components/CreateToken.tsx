@@ -15,7 +15,8 @@ import {
   Transaction, 
   SystemProgram, 
   sendAndConfirmTransaction, 
-  PublicKey 
+  PublicKey,
+  clusterApiUrl
 } from '@solana/web3.js';
 import {
   Button,
@@ -28,7 +29,13 @@ import {
   Paper,
   Switch,
   FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Link,
 } from '@mui/material';
+import { ContentCopy, Launch } from '@mui/icons-material';
 
 export const CreateToken: FC = () => {
   const { connection } = useConnection();
@@ -40,6 +47,22 @@ export const CreateToken: FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<{
+    mintAddress: string;
+    tokenAccountAddress: string;
+  } | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
+
+  const handleCopyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setSuccess('Address copied to clipboard!');
+  };
+
+  const getExplorerUrl = (address: string, type: 'token' | 'address') => {
+    const baseUrl = 'https://explorer.solana.com';
+    const networkParam = connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : '';
+    return `${baseUrl}/${type}/${address}${networkParam}`;
+  };
 
   const handleCreateToken = async () => {
     if (!publicKey || !signTransaction) {
@@ -181,8 +204,11 @@ export const CreateToken: FC = () => {
       }
 
       setSuccess('Token created successfully!');
-      console.log('Mint address:', mintKeypair.publicKey.toString());
-      console.log('Token account:', associatedTokenAddress.toString());
+      setTokenInfo({
+        mintAddress: mintKeypair.publicKey.toString(),
+        tokenAccountAddress: associatedTokenAddress.toString(),
+      });
+      setOpenDialog(true);
 
       // Reset form
       setTokenName('');
@@ -198,132 +224,229 @@ export const CreateToken: FC = () => {
   };
 
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
-        p: 4, 
-        maxWidth: 500, 
-        mx: 'auto',
-        background: 'linear-gradient(145deg, rgba(30,30,30,0.9) 0%, rgba(45,45,45,0.9) 100%)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-      }}
-    >
-      <Typography 
-        variant="h4" 
-        gutterBottom 
-        align="center"
-        sx={{
-          fontWeight: 600,
-          mb: 4,
-          background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
+    <>
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: 4, 
+          maxWidth: 500, 
+          mx: 'auto',
+          background: 'linear-gradient(145deg, rgba(30,30,30,0.9) 0%, rgba(45,45,45,0.9) 100%)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
         }}
       >
-        Create Token
-      </Typography>
-      <Box component="form" noValidate autoComplete="off">
-        <TextField
-          fullWidth
-          label="Token Name"
-          value={tokenName}
-          onChange={(e) => setTokenName(e.target.value)}
-          margin="normal"
-          required
+        <Typography 
+          variant="h4" 
+          gutterBottom 
+          align="center"
           sx={{
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: 'rgba(255,255,255,0.1)',
-              },
-              '&:hover fieldset': {
-                borderColor: 'rgba(255,255,255,0.2)',
-              },
-            },
-          }}
-        />
-        <TextField
-          fullWidth
-          label="Token Symbol"
-          value={tokenSymbol}
-          onChange={(e) => setTokenSymbol(e.target.value)}
-          margin="normal"
-          required
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: 'rgba(255,255,255,0.1)',
-              },
-              '&:hover fieldset': {
-                borderColor: 'rgba(255,255,255,0.2)',
-              },
-            },
-          }}
-        />
-        <TextField
-          fullWidth
-          label="Decimals"
-          type="number"
-          value={decimals}
-          onChange={(e) => setDecimals(e.target.value)}
-          margin="normal"
-          inputProps={{ min: 0, max: 9 }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: 'rgba(255,255,255,0.1)',
-              },
-              '&:hover fieldset': {
-                borderColor: 'rgba(255,255,255,0.2)',
-              },
-            },
-          }}
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={revokeFreeze}
-              onChange={(e) => setRevokeFreeze(e.target.checked)}
-              sx={{
-                '& .MuiSwitch-switchBase.Mui-checked': {
-                  color: '#2196F3',
-                  '&:hover': {
-                    backgroundColor: 'rgba(33, 150, 243, 0.08)',
-                  },
-                },
-                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                  backgroundColor: '#2196F3',
-                },
-              }}
-            />
-          }
-          label={
-            <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              Revoke Freeze Authority
-            </Typography>
-          }
-          sx={{ mt: 2, mb: 1 }}
-        />
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleCreateToken}
-          disabled={!publicKey || loading}
-          sx={{ 
-            mt: 4, 
-            mb: 2,
+            fontWeight: 600,
+            mb: 4,
             background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-            boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
-            color: 'white',
-            '&:hover': {
-              background: 'linear-gradient(45deg, #1E88E5 30%, #1CB5E0 90%)',
-            },
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
           }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Create Token'}
-        </Button>
-      </Box>
+          Create Token
+        </Typography>
+        <Box component="form" noValidate autoComplete="off">
+          <TextField
+            fullWidth
+            label="Token Name"
+            value={tokenName}
+            onChange={(e) => setTokenName(e.target.value)}
+            margin="normal"
+            required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.1)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255,255,255,0.2)',
+                },
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Token Symbol"
+            value={tokenSymbol}
+            onChange={(e) => setTokenSymbol(e.target.value)}
+            margin="normal"
+            required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.1)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255,255,255,0.2)',
+                },
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Decimals"
+            type="number"
+            value={decimals}
+            onChange={(e) => setDecimals(e.target.value)}
+            margin="normal"
+            inputProps={{ min: 0, max: 9 }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.1)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255,255,255,0.2)',
+                },
+              },
+            }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={revokeFreeze}
+                onChange={(e) => setRevokeFreeze(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#2196F3',
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.08)',
+                    },
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#2196F3',
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                Revoke Freeze Authority
+              </Typography>
+            }
+            sx={{ mt: 2, mb: 1 }}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleCreateToken}
+            disabled={!publicKey || loading}
+            sx={{ 
+              mt: 4, 
+              mb: 2,
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+              color: 'white',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #1E88E5 30%, #1CB5E0 90%)',
+              },
+            }}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Create Token'}
+          </Button>
+        </Box>
+      </Paper>
+
+      <Dialog 
+        open={openDialog} 
+        onClose={() => setOpenDialog(false)}
+        PaperProps={{
+          sx: {
+            background: 'linear-gradient(145deg, rgba(30,30,30,0.95) 0%, rgba(45,45,45,0.95) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#2196F3' }}>Token Created Successfully!</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1 }}>
+              Token Address:
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              p: 1,
+              borderRadius: 1,
+            }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
+                {tokenInfo?.mintAddress}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => handleCopyAddress(tokenInfo?.mintAddress || '')}
+                sx={{ minWidth: 'auto' }}
+              >
+                <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
+              </Button>
+              <Link
+                href={getExplorerUrl(tokenInfo?.mintAddress || '', 'token')}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ display: 'flex' }}
+              >
+                <Launch sx={{ color: 'rgba(255,255,255,0.7)' }} />
+              </Link>
+            </Box>
+          </Box>
+
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1 }}>
+              Token Account:
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              p: 1,
+              borderRadius: 1,
+            }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', flexGrow: 1 }}>
+                {tokenInfo?.tokenAccountAddress}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => handleCopyAddress(tokenInfo?.tokenAccountAddress || '')}
+                sx={{ minWidth: 'auto' }}
+              >
+                <ContentCopy sx={{ color: 'rgba(255,255,255,0.7)' }} />
+              </Button>
+              <Link
+                href={getExplorerUrl(tokenInfo?.tokenAccountAddress || '', 'address')}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ display: 'flex' }}
+              >
+                <Launch sx={{ color: 'rgba(255,255,255,0.7)' }} />
+              </Link>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setOpenDialog(false)}
+            sx={{ 
+              color: '#2196F3',
+              '&:hover': {
+                backgroundColor: 'rgba(33, 150, 243, 0.08)',
+              },
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!error}
@@ -358,6 +481,6 @@ export const CreateToken: FC = () => {
           {success}
         </Alert>
       </Snackbar>
-    </Paper>
+    </>
   );
 };
