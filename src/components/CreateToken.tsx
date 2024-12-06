@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useState, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
   PublicKey,
@@ -32,10 +32,27 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
   const { publicKey, signTransaction } = useWallet();
-  const connection = new Connection('https://solana-mainnet.rpc.extrnode.com', {
-    commitment: 'confirmed',
-    confirmTransactionInitialTimeout: 60000
-  });
+  const connection = useMemo(() => {
+    const conn = new Connection('https://solana-mainnet.rpc.extrnode.com', {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: 60000
+    });
+
+    // Переопределяем метод getBalance для правильной обработки типов
+    const originalGetBalance = conn.getBalance.bind(conn);
+    conn.getBalance = async (publicKey: PublicKey, commitmentOrConfig?: any) => {
+      try {
+        const balance = await originalGetBalance(publicKey, commitmentOrConfig);
+        // Преобразуем ответ в нужный формат
+        return Number(balance) || 0;
+      } catch (error) {
+        console.error('Balance fetch error:', error);
+        return 0;
+      }
+    };
+
+    return conn;
+  }, []);
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
