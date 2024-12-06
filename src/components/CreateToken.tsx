@@ -1,12 +1,11 @@
 import { FC, useState } from 'react';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   PublicKey,
   Transaction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  Keypair,
-  Commitment
+  Keypair
 } from '@solana/web3.js';
 import {
   createInitializeMintInstruction,
@@ -31,8 +30,7 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
-  const { publicKey, signTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { publicKey, signTransaction, connection } = useWallet();
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
@@ -67,30 +65,10 @@ export const CreateToken: FC = () => {
     setTokenInfo(null);
 
     try {
-      alert('Starting token creation process...');
-        
       // Use hardcoded values for rent exemption
       const mintRent = 1461600; // Standard rent exemption for token mint (82 bytes)
       const ataRent = 2039280;  // Standard rent exemption for ATA (165 bytes)
       
-      console.log('Using hardcoded values - Mint rent:', mintRent, 'ATA rent:', ataRent);
-      
-      // Get balance using connection
-      const balance = await connection.getBalance(publicKey, 'confirmed');
-      console.log('Wallet balance:', balance);
-
-      const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
-      
-      alert(`Balance check:
-Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL
-Required balance: ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL
-Mint rent: ${(mintRent / LAMPORTS_PER_SOL).toFixed(4)} SOL
-ATA rent: ${(ataRent / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
-      
-      if (balance < requiredBalance) {
-        throw new Error(`Insufficient balance. Please ensure you have at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL in your wallet. Current balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
-      }
-
       // Create mint account
       const mintKeypair = Keypair.generate();
 
@@ -100,9 +78,9 @@ ATA rent: ${(ataRent / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
         publicKey
       );
 
-      alert(`Addresses:
-Mint public key: ${mintKeypair.publicKey.toString()}
-Associated token address: ${associatedTokenAddress.toString()}`);
+      alert(`Creating token with addresses:
+Mint: ${mintKeypair.publicKey.toString()}
+Token Account: ${associatedTokenAddress.toString()}`);
         
       // First transaction: Create and initialize mint
       const createMintTx = new Transaction().add(
@@ -126,40 +104,35 @@ Associated token address: ${associatedTokenAddress.toString()}`);
 
       // Get the latest blockhash
       const { blockhash: mintBlockhash, lastValidBlockHeight: mintLastValid } = 
-        await connection.getLatestBlockhash('confirmed');
+        await connection.getLatestBlockhash('finalized');
 
       createMintTx.recentBlockhash = mintBlockhash;
       createMintTx.feePayer = publicKey;
         
-      alert('Signing mint transaction...');
+      alert('Please approve the first transaction in your wallet...');
       createMintTx.partialSign(mintKeypair);
       const signedMintTx = await signTransaction(createMintTx);
 
-      alert('Sending mint transaction...');
+      alert('Sending first transaction...');
       const mintSignature = await connection.sendRawTransaction(signedMintTx.serialize(), {
         skipPreflight: false,
-        preflightCommitment: 'confirmed',
+        preflightCommitment: 'finalized',
         maxRetries: 5
       });
 
-      alert(`Mint transaction sent: ${mintSignature}`);
+      alert(`First transaction sent: ${mintSignature}`);
         
       const mintConfirmation = await connection.confirmTransaction({
         blockhash: mintBlockhash,
         lastValidBlockHeight: mintLastValid,
         signature: mintSignature
-      }, 'confirmed');
+      }, 'finalized');
 
       if (mintConfirmation.value.err) {
         throw new Error(`Mint creation failed: ${JSON.stringify(mintConfirmation.value.err)}`);
       }
 
-      alert('Mint transaction confirmed. Waiting before next transaction...');
-        
-      // Add delay between transactions
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      alert('Starting second transaction...');
+      alert('First transaction confirmed. Starting second transaction...');
         
       // Second transaction: Create ATA and mint tokens
       const mintTokensTx = new Transaction().add(
@@ -194,34 +167,34 @@ Associated token address: ${associatedTokenAddress.toString()}`);
 
       // Get fresh blockhash for second transaction
       const { blockhash: tokenBlockhash, lastValidBlockHeight: tokenLastValid } = 
-        await connection.getLatestBlockhash('confirmed');
+        await connection.getLatestBlockhash('finalized');
 
       mintTokensTx.recentBlockhash = tokenBlockhash;
       mintTokensTx.feePayer = publicKey;
 
-      alert('Signing token transaction...');
+      alert('Please approve the second transaction in your wallet...');
       const signedTokenTx = await signTransaction(mintTokensTx);
 
-      alert('Sending token transaction...');
+      alert('Sending second transaction...');
       const tokenSignature = await connection.sendRawTransaction(signedTokenTx.serialize(), {
         skipPreflight: false,
-        preflightCommitment: 'confirmed',
+        preflightCommitment: 'finalized',
         maxRetries: 5
       });
 
-      alert(`Token transaction sent: ${tokenSignature}`);
+      alert(`Second transaction sent: ${tokenSignature}`);
         
       const tokenConfirmation = await connection.confirmTransaction({
         blockhash: tokenBlockhash,
         lastValidBlockHeight: tokenLastValid,
         signature: tokenSignature
-      }, 'confirmed');
+      }, 'finalized');
 
       if (tokenConfirmation.value.err) {
         throw new Error(`Token minting failed: ${JSON.stringify(tokenConfirmation.value.err)}`);
       }
 
-      alert('Token transaction confirmed!');
+      alert('Token creation completed successfully!');
         
       const newTokenInfo = {
         mintAddress: mintKeypair.publicKey.toString(),
