@@ -32,24 +32,30 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
   const { publicKey, signTransaction } = useWallet();
-  const connection = useMemo(() => {
-    const conn = new Connection('https://solana-mainnet.rpc.extrnode.com', 'confirmed');
+  const rpcEndpoint = 'https://api.mainnet-beta.solana.com';
+  const connection = useMemo(() => new Connection(rpcEndpoint), []);
 
-    // Переопределяем метод getBalance для правильной обработки типов
-    const originalGetBalance = conn.getBalance.bind(conn);
-    conn.getBalance = async (publicKey: PublicKey, commitment?: 'processed' | 'confirmed' | 'finalized') => {
-      try {
-        // Передаем commitment как строку, а не как объект
-        const balance = await originalGetBalance(publicKey, commitment || 'confirmed');
-        return balance;
-      } catch (error) {
-        console.error('Balance fetch error:', error);
-        return 0;
-      }
-    };
+  // Создаем отдельную функцию для проверки баланса через прямой RPC вызов
+  const checkBalance = async (address: PublicKey): Promise<number> => {
+    try {
+      const response = await fetch(rpcEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: [address.toString()]
+        })
+      });
+      const data = await response.json();
+      return data.result?.value || 0;
+    } catch (error) {
+      console.error('Failed to check balance:', error);
+      return 0;
+    }
+  };
 
-    return conn;
-  }, []);
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
