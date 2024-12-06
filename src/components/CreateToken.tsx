@@ -5,7 +5,8 @@ import {
   Transaction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  Keypair
+  Keypair,
+  Connection
 } from '@solana/web3.js';
 import {
   createInitializeMintInstruction,
@@ -30,7 +31,8 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
-  const { publicKey, signTransaction, connection } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
+  const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
