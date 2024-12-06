@@ -1,5 +1,13 @@
 import { FC, useState, useEffect, useMemo } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import {
+  Connection,
+  PublicKey,
+  Keypair,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -9,17 +17,7 @@ import {
   createMintToInstruction,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-} from '@solana/spl_token';
-import { 
-  Keypair, 
-  Transaction, 
-  SystemProgram, 
-  sendAndConfirmTransaction, 
-  PublicKey,
-  Connection,
-  clusterApiUrl,
-  LAMPORTS_PER_SOL
-} from '@solana/web3.js';
+} from '@solana/spl-token';
 import {
   Button,
   TextField,
