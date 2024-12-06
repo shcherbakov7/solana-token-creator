@@ -1,12 +1,12 @@
 import { FC, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import {
-  Connection,
   PublicKey,
   Transaction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  Keypair
+  Keypair,
+  Commitment
 } from '@solana/web3.js';
 import {
   createInitializeMintInstruction,
@@ -31,7 +31,8 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export const CreateToken: FC = () => {
-  const { publicKey, signTransaction, connection } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [decimals, setDecimals] = useState('9');
@@ -43,37 +44,6 @@ export const CreateToken: FC = () => {
     mintAddress: string;
     tokenAccountAddress: string;
   } | null>(null);
-
-  const getAccountBalance = async (address: PublicKey): Promise<number> => {
-    try {
-      const response = await fetch('https://rpc.ankr.com/solana', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getBalance',
-          params: [
-            address.toString(),
-            { commitment: 'confirmed' }
-          ]
-        })
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        console.error('RPC Error:', data.error);
-        throw new Error(data.error.message);
-      }
-
-      return data.result?.value || 0;
-    } catch (error) {
-      console.error('Failed to get balance:', error);
-      throw error;
-    }
-  };
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -105,8 +75,8 @@ export const CreateToken: FC = () => {
       
       console.log('Using hardcoded values - Mint rent:', mintRent, 'ATA rent:', ataRent);
       
-      // Get balance using our custom function
-      const balance = await getAccountBalance(publicKey);
+      // Get balance using connection
+      const balance = await connection.getBalance(publicKey, 'confirmed');
       console.log('Wallet balance:', balance);
 
       const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
@@ -156,7 +126,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
 
       // Get the latest blockhash
       const { blockhash: mintBlockhash, lastValidBlockHeight: mintLastValid } = 
-        await connection.getLatestBlockhash('finalized');
+        await connection.getLatestBlockhash('confirmed');
 
       createMintTx.recentBlockhash = mintBlockhash;
       createMintTx.feePayer = publicKey;
@@ -168,7 +138,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
       alert('Sending mint transaction...');
       const mintSignature = await connection.sendRawTransaction(signedMintTx.serialize(), {
         skipPreflight: false,
-        preflightCommitment: 'finalized',
+        preflightCommitment: 'confirmed',
         maxRetries: 5
       });
 
@@ -178,7 +148,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
         blockhash: mintBlockhash,
         lastValidBlockHeight: mintLastValid,
         signature: mintSignature
-      }, 'finalized');
+      }, 'confirmed');
 
       if (mintConfirmation.value.err) {
         throw new Error(`Mint creation failed: ${JSON.stringify(mintConfirmation.value.err)}`);
@@ -224,7 +194,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
 
       // Get fresh blockhash for second transaction
       const { blockhash: tokenBlockhash, lastValidBlockHeight: tokenLastValid } = 
-        await connection.getLatestBlockhash('finalized');
+        await connection.getLatestBlockhash('confirmed');
 
       mintTokensTx.recentBlockhash = tokenBlockhash;
       mintTokensTx.feePayer = publicKey;
@@ -235,7 +205,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
       alert('Sending token transaction...');
       const tokenSignature = await connection.sendRawTransaction(signedTokenTx.serialize(), {
         skipPreflight: false,
-        preflightCommitment: 'finalized',
+        preflightCommitment: 'confirmed',
         maxRetries: 5
       });
 
@@ -245,7 +215,7 @@ Associated token address: ${associatedTokenAddress.toString()}`);
         blockhash: tokenBlockhash,
         lastValidBlockHeight: tokenLastValid,
         signature: tokenSignature
-      }, 'finalized');
+      }, 'confirmed');
 
       if (tokenConfirmation.value.err) {
         throw new Error(`Token minting failed: ${JSON.stringify(tokenConfirmation.value.err)}`);
