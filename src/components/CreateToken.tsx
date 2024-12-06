@@ -91,10 +91,34 @@ export const CreateToken: FC = () => {
         
         // Check wallet balance
         const balance = await connection.getBalance(publicKey);
-        const requiredBalance = mintRent + ataRent;
+        const requiredBalance = mintRent + ataRent + 10000000; // Add extra for transaction fees
+        
+        console.log('Current balance:', balance / LAMPORTS_PER_SOL, 'SOL');
+        console.log('Required balance:', requiredBalance / LAMPORTS_PER_SOL, 'SOL');
         
         if (balance < requiredBalance) {
-          throw new Error(`Insufficient balance. Required ${requiredBalance / LAMPORTS_PER_SOL} SOL, got ${balance / LAMPORTS_PER_SOL} SOL`);
+          console.log('Requesting airdrop...');
+          try {
+            const airdropSignature = await connection.requestAirdrop(
+              publicKey,
+              2 * LAMPORTS_PER_SOL // Request 2 SOL
+            );
+            
+            // Wait for airdrop confirmation
+            await connection.confirmTransaction(airdropSignature);
+            console.log('Airdrop successful');
+            
+            // Verify new balance
+            const newBalance = await connection.getBalance(publicKey);
+            console.log('New balance:', newBalance / LAMPORTS_PER_SOL, 'SOL');
+            
+            if (newBalance < requiredBalance) {
+              throw new Error(`Insufficient balance even after airdrop. Please ensure you have at least ${requiredBalance / LAMPORTS_PER_SOL} SOL`);
+            }
+          } catch (airdropError) {
+            console.error('Airdrop failed:', airdropError);
+            throw new Error(`Failed to get required SOL. Please ensure you have at least ${requiredBalance / LAMPORTS_PER_SOL} SOL in your wallet`);
+          }
         }
 
         // Get associated token account address
@@ -125,7 +149,7 @@ export const CreateToken: FC = () => {
           )
         );
 
-        console.log('Getting latest blockhash for mint creation...');
+        // Get the latest blockhash
         const { blockhash: mintBlockhash, lastValidBlockHeight: mintLastValid } = 
           await connection.getLatestBlockhash('confirmed');
 
@@ -152,6 +176,9 @@ export const CreateToken: FC = () => {
         if (mintConfirmation.value.err) {
           throw new Error(`Mint creation failed: ${JSON.stringify(mintConfirmation.value.err)}`);
         }
+
+        // Add delay between transactions
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         console.log('Creating ATA and minting tokens...');
         
@@ -186,7 +213,7 @@ export const CreateToken: FC = () => {
           );
         }
 
-        console.log('Getting latest blockhash for token minting...');
+        // Get fresh blockhash for second transaction
         const { blockhash: tokenBlockhash, lastValidBlockHeight: tokenLastValid } = 
           await connection.getLatestBlockhash('confirmed');
 
